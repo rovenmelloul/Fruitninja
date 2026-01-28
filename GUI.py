@@ -18,7 +18,7 @@ def charger_images():
     images = {}
     
     # Liste des fruits à charger
-    noms = ["pasteque", "orange", "pomme", "banane", "kiwi", "bombe"]
+    noms = ["pasteque", "orange", "pomme", "banane", "kiwi", "bombe", "freeze"]
     
     for nom in noms:
         chemin = os.path.join(images_dossier, f"{nom}.png")

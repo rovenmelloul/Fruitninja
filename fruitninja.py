@@ -40,9 +40,15 @@ FRUITS_MAX = 15           # Beaucoup de fruits pour le chaos !
 # -------------------------------------------
 # CRÉER UN FRUIT
 # -------------------------------------------
-def creer_fruit(vitesse, gravite):
+def creer_fruit(vitesse, gravite, allow_freeze=True):
     """Crée un nouveau fruit avec trajectoire réaliste style Fruit Ninja"""
     noms_fruits = ["pasteque", "orange", "pomme", "banane", "kiwi"]
+    
+    # 3% de chance de spawn un fruit FREEZE (Ajusté selon feedback)
+    # MAIS SEULEMENT SI AUTORISÉ (Cooldown)
+    nom_fruit = random.choice(noms_fruits)
+    if allow_freeze and random.random() < 0.03:
+        nom_fruit = "freeze"
     
     # Position de départ VARIÉE (toute la largeur)
     x = random.randint(50, LARGEUR - 50)
@@ -59,7 +65,7 @@ def creer_fruit(vitesse, gravite):
         vitesse_x = random.uniform(-2, 2)
     
     fruit = {
-        "nom": random.choice(noms_fruits),
+        "nom": nom_fruit,
         "x": x,
         "y": HAUTEUR + 50,
         "vitesse_x": vitesse_x,
@@ -109,33 +115,33 @@ def creer_moitie(fruit, direction):
 # -------------------------------------------
 # BOUGER UN FRUIT
 # -------------------------------------------
-def bouger_fruit(fruit):
+def bouger_fruit(fruit, facteur_vitesse=1.0):
     """Met à jour la position du fruit"""
-    fruit["x"] += fruit["vitesse_x"]
-    fruit["y"] += fruit["vitesse_y"]
-    fruit["vitesse_y"] += fruit["gravite"]
-    fruit["rotation"] += fruit["rotation_vitesse"]
+    fruit["x"] += fruit["vitesse_x"] * facteur_vitesse
+    fruit["y"] += fruit["vitesse_y"] * facteur_vitesse
+    fruit["vitesse_y"] += fruit["gravite"] * facteur_vitesse
+    fruit["rotation"] += fruit["rotation_vitesse"] * facteur_vitesse
 
 
 # -------------------------------------------
 # BOUGER UNE BOMBE
 # -------------------------------------------
-def bouger_bombe(bombe):
+def bouger_bombe(bombe, facteur_vitesse=1.0):
     """Met à jour la position de la bombe"""
-    bombe["x"] += bombe["vitesse_x"]
-    bombe["y"] += bombe["vitesse_y"]
-    bombe["vitesse_y"] += bombe["gravite"]
+    bombe["x"] += bombe["vitesse_x"] * facteur_vitesse
+    bombe["y"] += bombe["vitesse_y"] * facteur_vitesse
+    bombe["vitesse_y"] += bombe["gravite"] * facteur_vitesse
 
 
 # -------------------------------------------
 # BOUGER UNE MOITIÉ DE FRUIT
 # -------------------------------------------
-def bouger_moitie(moitie):
+def bouger_moitie(moitie, facteur_vitesse=1.0):
     """Met à jour la moitié de fruit coupé"""
-    moitie["x"] += moitie["vitesse_x"]
-    moitie["y"] += moitie["vitesse_y"]
-    moitie["vitesse_y"] += moitie["gravite"]
-    moitie["rotation"] += moitie["rotation_vitesse"]
+    moitie["x"] += moitie["vitesse_x"] * facteur_vitesse
+    moitie["y"] += moitie["vitesse_y"] * facteur_vitesse
+    moitie["vitesse_y"] += moitie["gravite"] * facteur_vitesse
+    moitie["rotation"] += moitie["rotation_vitesse"] * facteur_vitesse
     moitie["timer"] -= 1
 
 
@@ -153,41 +159,33 @@ def souris_touche(objet, point):
 # -------------------------------------------
 # CALCULER LE NIVEAU ET LA DIFFICULTÉ
 # -------------------------------------------
-def calculer_difficulte(score):
+def calculer_difficulte(temps_jeu):
     """
-    Augmente la difficulté en fonction du score
-    ADAPTÉ AUX ENFANTS : progression très douce
+    Augmente la difficulté en fonction du TEMPS de jeu (en secondes)
     """
-    # Niveau = score / 150 (progression BEAUCOUP plus lente)
-    # 6 sec de jeu = ~60 pts = Niveau 1 (et pas Niveau 2 ou 3)
-    niveau = 1 + score // 150
-    
-    # Limiter le niveau max à 20
-    niveau = min(niveau, 20)
-    
-    # Vitesse STABLE (optimisée pour le fun et les combos)
-    # On ne l'augmente presque plus, c'est la quantité de fruits qui compte
+    # Vitesse : Augmente très très légèrement avec le temps
     vitesse = VITESSE_MAX
     
     # Gravité stable
     gravite = GRAVITE_INITIALE
     
-    # Temps entre les spawns diminue
-    spawn_delay = SPAWN_INITIAL - (niveau - 1) * 3
+    # Temps entre les spawns (diminue avec le temps)
+    # Démarre lent (80 ticks) -> finit rapide (30 ticks)
+    spawn_delay = SPAWN_INITIAL - (temps_jeu // 2) 
     spawn_delay = max(spawn_delay, SPAWN_MIN)
     
-    # DENSITÉ : Augmente très progressivement
-    if niveau < 4:      # Jusqu'à ~600 pts (longtemps)
-        nb_fruits = 2   # Calme
-    elif niveau < 8:    # ~1200 pts
-        nb_fruits = 4   # Moyen
-    elif niveau < 14:   # ~2100 pts
-        nb_fruits = 6   # Intense
-    else:
-        nb_fruits = 8   # Chaos (fin de partie)
+    # DENSITÉ : Basée sur des phases de temps
+    if temps_jeu < 15:          # 0-15s : Échauffement
+        nb_fruits = random.randint(1, 2)
+    elif temps_jeu < 45:        # 15-45s : Montée en puissance
+        nb_fruits = random.randint(2, 4)
+    elif temps_jeu < 90:        # 45-90s : Intense
+        nb_fruits = random.randint(3, 6)
+    else:                       # 90s+ : Chaos contrôlé
+        nb_fruits = random.randint(4, 8) 
     
     return {
-        "niveau": niveau,
+        "niveau": int(temps_jeu // 10),
         "vitesse": vitesse,
         "gravite": gravite,
         "spawn_delay": spawn_delay,
@@ -230,6 +228,8 @@ def jouer():
     
     # Timer pour le spawn
     timer_spawn = 0
+    freeze_timer = 0 # Timer pour l'effet de gel
+    last_freeze_time = -10000 # Pour gérer le cooldown de spawn (10s)
     vague_count = 0  # Compteur global de vagues
     
     # -------------------------------------------
@@ -257,6 +257,9 @@ def jouer():
                     bonus_textes = []
                     vague_count = 0  # Réinitialiser le compteur de vagues
                     combo_count = 0  # Reset combo
+                    freeze_timer = 0 # Reset freeze
+                    last_freeze_time = -10000 # Reset cooldown
+                    temps_debut = pygame.time.get_ticks() # Reset du temps
                 
                 elif etat == "game_over":
                     etat = "menu"
@@ -277,8 +280,9 @@ def jouer():
         # -------------------------------------------
         if etat == "jeu":
             
-            # Calculer la difficulté actuelle
-            diff = calculer_difficulte(score)
+            # Calculer la difficulté actuelle basée sur le TEMPS
+            temps_actuel = (pygame.time.get_ticks() - temps_debut) / 1000
+            diff = calculer_difficulte(temps_actuel)
             niveau = diff["niveau"]
             vitesse = diff["vitesse"]
             gravite = diff["gravite"]
@@ -286,7 +290,23 @@ def jouer():
             nb_fruits = diff["nb_fruits"]
             
             # Spawn des fruits
-            timer_spawn += 1
+            
+            # Gérer le Freeze
+            facteur_vitesse = 1.0
+            if freeze_timer > 0:
+                freeze_timer -= 1
+                facteur_vitesse = 0.3 # RALENTI LE TEMPS
+                
+                 # Feedback visuel (simple overlay bleuâtre simulé par du texte pour l'instant)
+                if freeze_timer % 60 == 0: # Chaque seconde
+                     bonus_textes.append({
+                        "texte": "❄️ FREEZE! ❄️",
+                        "x": LARGEUR // 2,
+                        "y": HAUTEUR // 4,
+                        "timer": 30
+                    })
+            
+            timer_spawn += 1 * facteur_vitesse # Le spawn ralentit aussi !
             if timer_spawn >= spawn_delay:
                 timer_spawn = 0
                 
@@ -300,23 +320,34 @@ def jouer():
                 vague_count += 1
                 
                 # LOGIQUE DE VAGUES
-                # Les 3 premiers lancers sont calmes (1 ou 2 fruits)
+                # On utilise directement le nombre calculé par le temps
                 fruits_actuels = len(fruits)
-                nb_a_lancer = 1
+                nb_a_lancer = nb_fruits # La base vient du temps maintenant
                 
-                if vague_count <= 3:
-                    nb_a_lancer = random.randint(1, 2)
-                else:
-                    # Ensuite : MODE COMBO (60% chance)
-                    if random.random() < 0.6:  
-                         nb_a_lancer = random.randint(3, 5)
-                    else:
-                         nb_a_lancer = random.randint(1, nb_fruits)
+                # Petite part d'aléatoire pour pas être robotique
+                if random.random() < 0.3:
+                     nb_a_lancer += random.randint(-1, 1)
+                     nb_a_lancer = max(1, nb_a_lancer) # Au moins 1 fruit
+                
+                 # Limite STRICTE pour éviter les lags et l'illisible
+                if fruits_actuels + nb_a_lancer > 12: # Max 12 fruits à l'écran simultanés
+                     nb_a_lancer = max(0, 12 - fruits_actuels)
                 
                 # Ajouter des fruits
                 if fruits_actuels < FRUITS_MAX:
                     for i in range(nb_a_lancer):
-                        fruits.append(creer_fruit(vitesse, gravite))
+                        # Gestion du cooldown de spawn
+                        # Ne peut pas apparaître dans les 10s après le précédent
+                        temps_actuel_ms = pygame.time.get_ticks()
+                        allow_freeze = (temps_actuel_ms - last_freeze_time > 10000)
+                        
+                        nouveau_fruit = creer_fruit(vitesse, gravite, allow_freeze)
+                        fruits.append(nouveau_fruit)
+                        
+                        # Si c'était un freeze, on enregistre le temps
+                        if nouveau_fruit["nom"] == "freeze":
+                            last_freeze_time = temps_actuel_ms
+                            allow_freeze = False # Un seul par vague max
                 
                 # Bombe (toujours possible, 1 chance sur 3, pour pimenter)
                 if random.randint(1, 3) == 1 and len(bombes) < 3:
@@ -324,15 +355,15 @@ def jouer():
             
             # Bouger les fruits
             for fruit in fruits:
-                bouger_fruit(fruit)
+                bouger_fruit(fruit, facteur_vitesse)
             
             # Bouger les bombes
             for bombe in bombes:
-                bouger_bombe(bombe)
+                bouger_bombe(bombe, facteur_vitesse)
             
             # Bouger les moitiés
             for moitie in moities:
-                bouger_moitie(moitie)
+                bouger_moitie(moitie, facteur_vitesse)
             
             # Vérifier les collisions avec la souris
             if souris_appuyee and len(points_souris) > 0:
@@ -357,6 +388,15 @@ def jouer():
                                     texte_bonus = f"{combo_count}x COMBO! (+{points_gagnes})"
                                 
                                 score += points_gagnes
+                                
+                                # EFFET FREEZE
+                                if fruit["nom"] == "freeze":
+                                    freeze_timer = 300 # 5 Secondes de freeze (60 FPS * 5)
+                                    texte_bonus = "❄️ FREEZE! ❄️"
+                                    
+                                    # Tout ralentir immédiatement
+                                    for f in fruits: f["vitesse_x"] *= 0.5; f["vitesse_y"] *= 0.5
+                                    for b in bombes: b["vitesse_x"] *= 0.5; b["vitesse_y"] *= 0.5
                                 
                                 # Créer les moitiés
                                 moities.append(creer_moitie(fruit, -1))
@@ -429,7 +469,7 @@ def jouer():
             dessiner_lame(ecran, points_souris)
             
             # Dessiner le score et les vies
-            diff = calculer_difficulte(score)
+            # Dessiner le score et les vies
             dessiner_score(ecran, score, vies)
             
             # Dessiner les bonus
