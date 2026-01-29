@@ -114,59 +114,64 @@ def dessiner_score(ecran, score, vies):
     ecran.blit(texte_vies, (20, 70))
 
 
-def dessiner_menu(ecran, largeur, hauteur, images=None):
-    # Fond
-    if images and "bg" in images:
-        dessiner_fond(ecran, largeur, hauteur, images)
-    else:
-        ecran.fill((10, 8, 25))
+# -------------------------------------------
+# DESSINER LE MENU
+# -------------------------------------------
+def dessiner_menu(ecran, largeur, hauteur, scores={"classique": 0, "arcade": 0}):
+    """Dessine le menu principal avec 2 modes"""
+    # Fond sombre
+    ecran.fill((40, 30, 50))
+    
+    # Titre
+    grande_police = pygame.font.Font(None, 90)
+    titre = grande_police.render("FRUIT NINJA", True, (255, 100, 50))
+    ecran.blit(titre, (largeur // 2 - titre.get_width() // 2, 50))
+    
+    # ZONE CLASSIQUE (Gauche)
+    rect_classique = pygame.Rect(50, 150, 300, 300)
+    pygame.draw.rect(ecran, (50, 100, 50), rect_classique, border_radius=20)
+    pygame.draw.rect(ecran, (100, 200, 100), rect_classique, 3, border_radius=20)
+    
+    font_mode = pygame.font.Font(None, 60)
+    txt_classique = font_mode.render("CLASSIQUE", True, (150, 255, 150))
+    ecran.blit(txt_classique, (rect_classique.centerx - txt_classique.get_width()//2, rect_classique.centery - 60))
+    
+    # Score Classique
+    score_c = scores.get('classique', 0)
+    font_record = pygame.font.Font(None, 35)
+    txt_rec_label = font_record.render("RECORD", True, (200, 200, 100))
+    ecran.blit(txt_rec_label, (rect_classique.centerx - txt_rec_label.get_width()//2, rect_classique.centery + 10))
+    
+    font_score_val = pygame.font.Font(None, 65)
+    txt_rec_val = font_score_val.render(str(score_c), True, (255, 255, 100))
+    ecran.blit(txt_rec_val, (rect_classique.centerx - txt_rec_val.get_width()//2, rect_classique.centery + 40))
+    
+    txt_info = pygame.font.Font(None, 30).render("(Cliquez Ici)", True, (200, 200, 200))
+    ecran.blit(txt_info, (rect_classique.centerx - txt_info.get_width()//2, rect_classique.centery + 90))
 
-    # Fonts
-    title_font = pygame.font.SysFont("arial", 72, bold=True)
-    sub_font = pygame.font.SysFont("arial", 28, bold=True)
-    hint_font = pygame.font.SysFont("arial", 22)
+    # ZONE ARCADE (Droite)
+    rect_arcade = pygame.Rect(largeur - 350, 150, 300, 300)
+    pygame.draw.rect(ecran, (100, 50, 100), rect_arcade, border_radius=20)
+    pygame.draw.rect(ecran, (255, 100, 255), rect_arcade, 3, border_radius=20)
+    
+    txt_arcade = font_mode.render("ARCADE", True, (255, 150, 255))
+    ecran.blit(txt_arcade, (rect_arcade.centerx - txt_arcade.get_width()//2, rect_arcade.centery - 60))
+    
+    # Score Arcade
+    score_a = scores.get('arcade', 0)
+    ecran.blit(txt_rec_label, (rect_arcade.centerx - txt_rec_label.get_width()//2, rect_arcade.centery + 10))
+    
+    txt_rec_val_a = font_score_val.render(str(score_a), True, (255, 255, 100))
+    ecran.blit(txt_rec_val_a, (rect_arcade.centerx - txt_rec_val_a.get_width()//2, rect_arcade.centery + 40))
+    
+    txt_info_a = pygame.font.Font(None, 30).render("(Touche 'A' / Clic)", True, (200, 200, 200))
+    ecran.blit(txt_info_a, (rect_arcade.centerx - txt_info_a.get_width()//2, rect_arcade.centery + 60))
+    
+    # Instructions bas
+    instructions = "ESC pour Pause  |  Coupez les fruits !"
+    txt_inst = pygame.font.Font(None, 35).render(instructions, True, (150, 150, 150))
+    ecran.blit(txt_inst, (largeur // 2 - txt_inst.get_width() // 2, hauteur - 50))
 
-    # Couleurs néon
-    cyan = (0, 255, 255)
-    pink = (255, 40, 180)
-    white = (230, 230, 240)
-
-    # Petit pulse (anime le menu)
-    t = pygame.time.get_ticks()
-    pulse = 1.0 + 0.03 * (1 if (t // 300) % 2 == 0 else -1)
-
-    #Titre (double rendu pour effet glow simple)
-    title = "NEON SLICE DOJO"
-    title_glow = title_font.render(title, True, pink)
-    title_main = title_font.render(title, True, cyan)
-
-    rect = title_main.get_rect(center=(largeur // 2, hauteur // 3))
-    glow_rect = title_glow.get_rect(center=(rect.centerx + 2, rect.centery + 2))
-
-    ecran.blit(title_glow, glow_rect)
-    ecran.blit(title_main, rect)
-
-    #Bouton START
-    btn_text = "▶  START"
-    btn = sub_font.render(btn_text, True, white)
-    btn_rect = btn.get_rect(center=(largeur // 2, int(hauteur * 0.55)))
-
-    #Fond du bouton (néon)
-    padding_x, padding_y = 22, 14
-    box = pygame.Rect(
-        btn_rect.x - padding_x, btn_rect.y - padding_y,
-        btn_rect.width + padding_x * 2, btn_rect.height + padding_y * 2
-    )
-
-    pygame.draw.rect(ecran, (20, 18, 45), box, border_radius=14)
-    pygame.draw.rect(ecran, cyan, box, width=2, border_radius=14)
-
-    ecran.blit(btn, btn_rect)
-
-    # Hint
-    hint = hint_font.render("Clique pour jouer (ou ENTER)", True, white)
-    hint_rect = hint.get_rect(center=(largeur // 2, int(hauteur * 0.70)))
-    ecran.blit(hint, hint_rect)
 
 # DESSINER GAME OVER
 def dessiner_game_over(ecran, largeur, hauteur, score):
@@ -228,3 +233,28 @@ def dessiner_fruit_coupe(ecran, images, moitie):
         tournee = pygame.transform.rotate(petite, angle)
         rect = tournee.get_rect(center=(x, y))
         ecran.blit(tournee, rect)
+
+
+# -------------------------------------------
+# DESSINER LA PAUSE
+# -------------------------------------------
+def dessiner_pause(ecran, largeur, hauteur):
+    """Affiche l'écran de pause"""
+    # Overlay sombre
+    overlay = pygame.Surface((largeur, hauteur))
+    overlay.fill((0, 0, 0))
+    overlay.set_alpha(150)
+    ecran.blit(overlay, (0, 0))
+    
+    # Texte PAUSE
+    font = pygame.font.Font(None, 100)
+    txt = font.render("PAUSE", True, (255, 255, 255))
+    ecran.blit(txt, (largeur // 2 - txt.get_width() // 2, hauteur // 3))
+    
+    # Instructions
+    font_small = pygame.font.Font(None, 50)
+    resume = font_small.render("ESC: Reprendre", True, (200, 200, 200))
+    quit_txt = font_small.render("Q: Quitter", True, (200, 200, 200))
+    
+    ecran.blit(resume, (largeur // 2 - resume.get_width() // 2, hauteur // 2))
+    ecran.blit(quit_txt, (largeur // 2 - quit_txt.get_width() // 2, hauteur // 2 + 60))

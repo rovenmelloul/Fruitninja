@@ -17,8 +17,11 @@ from GUI import (
     dessiner_menu,
     dessiner_game_over,
     dessiner_bonus,
-    dessiner_fruit_coupe
+    dessiner_fruit_coupe,
+    dessiner_pause
 )
+from fruitninja_arcade import jouer_arcade
+from score_manager import charger_scores, sauvegarder_score
 
 # -------------------------------------------
 # PARAMÈTRES DU JEU
@@ -210,7 +213,9 @@ def jouer():
     
     # État du jeu
     en_cours = True
-    etat = "menu"  # menu, jeu, game_over
+    etat = "menu"  # menu, jeu, game_over, pause
+    scores_actuels = charger_scores()
+
     
     # Listes des objets
     fruits = []
@@ -243,23 +248,53 @@ def jouer():
             if event.type == pygame.QUIT:
                 en_cours = False
             
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    if etat == "jeu":
+                        etat = "pause"
+                    elif etat == "pause":
+                        etat = "jeu"
+                
+                if etat == "pause" and event.key == pygame.K_q:
+                    etat = "menu"
+                    scores_actuels = charger_scores() # Update scores
+
+                if etat == "menu" and event.key == pygame.K_a:
+                    # Lancer le mode Arcade !
+                    jouer_arcade()
+                    scores_actuels = charger_scores() # Reload scores au retour
+                    pygame.display.set_mode((LARGEUR, HAUTEUR)) 
+                    etat = "menu"
+
+            
             if event.type == pygame.MOUSEBUTTONDOWN:
                 souris_appuyee = True
                 points_souris = [event.pos]
                 
                 if etat == "menu":
-                    etat = "jeu"
-                    score = 0
-                    vies = 3
-                    fruits = []
-                    bombes = []
-                    moities = []
-                    bonus_textes = []
-                    vague_count = 0  # Réinitialiser le compteur de vagues
-                    combo_count = 0  # Reset combo
-                    freeze_timer = 0 # Reset freeze
-                    last_freeze_time = -10000 # Reset cooldown
-                    temps_debut = pygame.time.get_ticks() # Reset du temps
+                    mx, my = event.pos
+                    
+                    # Zone CLASSIQUE (50, 150, 300, 300)
+                    if 50 <= mx <= 350 and 150 <= my <= 450:
+                        etat = "jeu"
+                        score = 0
+                        vies = 3
+                        fruits = []
+                        bombes = []
+                        moities = []
+                        bonus_textes = []
+                        vague_count = 0 
+                        combo_count = 0
+                        freeze_timer = 0
+                        last_freeze_time = -10000
+                        temps_debut = pygame.time.get_ticks()
+                    
+                    # Zone ARCADE (LARGEUR - 350, 150, 300, 300) -> (450, 150, 300, 300)
+                    elif 450 <= mx <= 750 and 150 <= my <= 450:
+                        jouer_arcade()
+                        scores_actuels = charger_scores()
+                        pygame.display.set_mode((LARGEUR, HAUTEUR))
+                        etat = "menu"
                 
                 elif etat == "game_over":
                     etat = "menu"
@@ -427,6 +462,7 @@ def jouer():
                     vies -= 1
                     if vies <= 0:
                         etat = "game_over"
+                        sauvegarder_score("classique", score)
                     continue
                 nouveaux_fruits.append(fruit)
             fruits = nouveaux_fruits
@@ -447,7 +483,7 @@ def jouer():
         # AFFICHAGE
         # -------------------------------------------
         if etat == "menu":
-            dessiner_menu(ecran, LARGEUR, HAUTEUR)
+            dessiner_menu(ecran, LARGEUR, HAUTEUR, scores_actuels)
         
         elif etat == "jeu":
             dessiner_fond(ecran, LARGEUR, HAUTEUR)
@@ -478,6 +514,12 @@ def jouer():
         elif etat == "game_over":
             dessiner_fond(ecran, LARGEUR, HAUTEUR)
             dessiner_game_over(ecran, LARGEUR, HAUTEUR, score)
+            
+        elif etat == "pause":
+            dessiner_fond(ecran, LARGEUR, HAUTEUR)
+            # On pourrait dessiner les fruits figés ici si on voulait
+            dessiner_pause(ecran, LARGEUR, HAUTEUR)
+
         
         # Mettre à jour l'écran
         pygame.display.flip()

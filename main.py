@@ -5,6 +5,7 @@
 # ============================================
 
 from fruitninja import jouer
+from fruitninja_arcade import jouer_arcade
 
 # Lancer le jeu
 if __name__ == "__main__":
