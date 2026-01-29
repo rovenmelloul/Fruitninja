@@ -1,25 +1,22 @@
-# ============================================
-# GUI.py - Interface graphique Pygame
-# ============================================
-# Ce fichier gère TOUT l'affichage du jeu
-# ============================================
-
 import pygame
 import os
 
-# -------------------------------------------
 # CHARGER LES IMAGES DES FRUITS
-# -------------------------------------------
+
 def charger_images():
-    """Charge toutes les images du dossier images/"""
-    dossier = os.path.dirname(__file__)
-    images_dossier = os.path.join(dossier, "images")
-    
     images = {}
-    
-    # Liste des fruits à charger
-    noms = ["pasteque", "orange", "pomme", "banane", "kiwi", "bombe", "freeze"]
-    
+
+    #Background néon
+    images["bg"] = pygame.image.load("images/backgrounds/bg_neon_grid_v1.png").convert()
+
+    #Spritesheet néon (pack fruits)
+    images["sheet"] = pygame.image.load("images/spritesheets/neon_pack_v1.png").convert_alpha()
+
+    # Pour l’animation de fond (scroll)
+    images["bg_scroll"] = 0
+
+    return images
+
     for nom in noms:
         chemin = os.path.join(images_dossier, f"{nom}.png")
         if os.path.exists(chemin):
@@ -29,18 +26,21 @@ def charger_images():
     
     return images
 
+def dessiner_fond(ecran, largeur, hauteur, images=None):
+    # Si le jeu n’envoie pas "images", on fait un fallback simple
+    if images is None or "bg" not in images:
+        ecran.fill((10, 8, 25))
+        return
 
-# -------------------------------------------
-# DESSINER LE FOND
-# -------------------------------------------
-def dessiner_fond(ecran, largeur, hauteur):
-    """Dessine un fond dégradé bleu nuit"""
-    for y in range(hauteur):
-        # Dégradé du bleu foncé vers le bleu-violet
-        bleu = int(20 + (y / hauteur) * 60)
-        vert = int(20 + (y / hauteur) * 40)
-        rouge = int(30 + (y / hauteur) * 50)
-        pygame.draw.line(ecran, (rouge, vert, bleu), (0, y), (largeur, y))
+    bg = images["bg"]
+    bg_scaled = pygame.transform.smoothscale(bg, (largeur, hauteur))
+
+    # Scroll vertical léger (illusion arcade)
+    images["bg_scroll"] = (images["bg_scroll"] + 1) % hauteur
+    y = images["bg_scroll"]
+
+    ecran.blit(bg_scaled, (0, -y))
+    ecran.blit(bg_scaled, (0, hauteur - y))
 
 
 # -------------------------------------------
@@ -114,45 +114,61 @@ def dessiner_score(ecran, score, vies):
     ecran.blit(texte_vies, (20, 70))
 
 
-# -------------------------------------------
-# DESSINER LE MENU
-# -------------------------------------------
-def dessiner_menu(ecran, largeur, hauteur):
-    """Dessine le menu principal"""
-    # Fond sombre
-    ecran.fill((40, 30, 50))
-    
-    # Titre
-    grande_police = pygame.font.Font(None, 90)
-    titre = grande_police.render("FRUIT NINJA", True, (255, 100, 50))
-    ombre = grande_police.render("FRUIT NINJA", True, (100, 40, 20))
-    ecran.blit(ombre, (largeur // 2 - ombre.get_width() // 2 + 4, 124))
-    ecran.blit(titre, (largeur // 2 - titre.get_width() // 2, 120))
-    
-    # Sous-titre
-    police = pygame.font.Font(None, 45)
-    sous_titre = police.render("Clique pour jouer !", True, (255, 230, 100))
-    ecran.blit(sous_titre, (largeur // 2 - sous_titre.get_width() // 2, 250))
-    
-    # Instructions
-    petite_police = pygame.font.Font(None, 35)
-    instructions = [
-        "Glisse la souris pour couper les fruits",
-        "Évite les bombes !",
-        "Le jeu accélère petit à petit...",
-        "Jeu adapté pour les enfants"
-    ]
-    
-    y = 350
-    for texte in instructions:
-        surface = petite_police.render(texte, True, (200, 200, 200))
-        ecran.blit(surface, (largeur // 2 - surface.get_width() // 2, y))
-        y += 45
+def dessiner_menu(ecran, largeur, hauteur, images=None):
+    # Fond
+    if images and "bg" in images:
+        dessiner_fond(ecran, largeur, hauteur, images)
+    else:
+        ecran.fill((10, 8, 25))
 
+    # Fonts
+    title_font = pygame.font.SysFont("arial", 72, bold=True)
+    sub_font = pygame.font.SysFont("arial", 28, bold=True)
+    hint_font = pygame.font.SysFont("arial", 22)
 
-# -------------------------------------------
+    # Couleurs néon
+    cyan = (0, 255, 255)
+    pink = (255, 40, 180)
+    white = (230, 230, 240)
+
+    # Petit pulse (anime le menu)
+    t = pygame.time.get_ticks()
+    pulse = 1.0 + 0.03 * (1 if (t // 300) % 2 == 0 else -1)
+
+    #Titre (double rendu pour effet glow simple)
+    title = "NEON SLICE DOJO"
+    title_glow = title_font.render(title, True, pink)
+    title_main = title_font.render(title, True, cyan)
+
+    rect = title_main.get_rect(center=(largeur // 2, hauteur // 3))
+    glow_rect = title_glow.get_rect(center=(rect.centerx + 2, rect.centery + 2))
+
+    ecran.blit(title_glow, glow_rect)
+    ecran.blit(title_main, rect)
+
+    #Bouton START
+    btn_text = "▶  START"
+    btn = sub_font.render(btn_text, True, white)
+    btn_rect = btn.get_rect(center=(largeur // 2, int(hauteur * 0.55)))
+
+    #Fond du bouton (néon)
+    padding_x, padding_y = 22, 14
+    box = pygame.Rect(
+        btn_rect.x - padding_x, btn_rect.y - padding_y,
+        btn_rect.width + padding_x * 2, btn_rect.height + padding_y * 2
+    )
+
+    pygame.draw.rect(ecran, (20, 18, 45), box, border_radius=14)
+    pygame.draw.rect(ecran, cyan, box, width=2, border_radius=14)
+
+    ecran.blit(btn, btn_rect)
+
+    # Hint
+    hint = hint_font.render("Clique pour jouer (ou ENTER)", True, white)
+    hint_rect = hint.get_rect(center=(largeur // 2, int(hauteur * 0.70)))
+    ecran.blit(hint, hint_rect)
+
 # DESSINER GAME OVER
-# -------------------------------------------
 def dessiner_game_over(ecran, largeur, hauteur, score):
     """Dessine l'écran de fin de partie"""
     # Fond sombre semi-transparent
